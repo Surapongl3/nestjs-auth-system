@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,6 +20,7 @@ import { Permissions } from '../auth/decorator/permissions.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from './users.service';
 import { Permission } from 'src/auth/enum/permission.enum';
+import { QueryUserDto } from 'src/dto/query-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -29,8 +31,8 @@ export class UsersController {
   ///Guard ใช้กับ authorization ได้ดีกว่า
   @UseGuards(AuthGuard('jwt'))
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: QueryUserDto) {
+    return this.usersService.findAll(query);
   }
 @UseGuards(AuthGuard('jwt'))
 @Permissions(Permission.VIEW_USERS)
