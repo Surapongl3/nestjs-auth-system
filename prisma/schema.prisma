@@ -15,9 +15,11 @@ model User {
   deletedAt        DateTime?
   role             String    @default("USER")
   refreshTokenHash String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt @default(now())///ทุกครั้งที่ update row prisma จะ update field นี้อัตโนมัติ
   isActive         Boolean   @default(true)
-  tokenVersion Int    @default(0)
-  posts        Post[]
+  tokenVersion     Int       @default(0)
+  posts            Post[]
 }
 
 model Post {

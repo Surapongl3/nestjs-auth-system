@@ -3,13 +3,20 @@ import * as bcrypt from 'bcrypt';
 import { QueryUserDto } from 'src/dto/query-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
-import { log } from 'console';
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(query: QueryUserDto) {
-    const { page = 1, limit = 10, search, role, isActive } = query;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      role,
+      isActive,
+      sortBy = 'createdAt',
+      order = 'desc',
+    } = query;
 
     const skip = (page - 1) * limit;
 
@@ -35,17 +42,19 @@ export class UsersService {
     if (role) {
       where.role = role;
     }
-  
-    
+
     if (isActive !== undefined) {
       where.isActive = isActive;
     }
 
     const users = await this.prisma.user.findMany({
+      where,
       skip,
       take: limit,
+      orderBy: {
+        [sortBy]: order,
+      },
       include: { posts: true },
-      where,
     });
 
     const total = await this.prisma.user.count({
@@ -54,9 +63,11 @@ export class UsersService {
 
     return {
       data: users,
-      page,
-      limit,
-      total,
+      meta: {
+        page,
+        limit,
+        total,
+      },
     };
   }
 
@@ -80,19 +91,17 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('user not found');
     }
+    
     return user;
   }
-
   async delete(id: number) {
-    try {
-      await this.prisma.user.delete({
-        where: { id },
-      });
-    } catch {
-      throw new NotFoundException('User not found');
-    }
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
   }
-
   async banUser(id: number) {
     return this.prisma.user.update({
       where: { id },
@@ -113,4 +122,23 @@ export class UsersService {
       },
     });
   }
+
+  async findTrash() {
+  return this.prisma.user.findMany({
+    where: {
+      deletedAt: {
+        not: null,
+      },
+    },
+  });
+}
+
+async restore(id: number) {
+  return this.prisma.user.update({
+    where: { id },
+    data: {
+      deletedAt: null,
+    },
+  });
+}
 }

@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { Role } from 'src/auth/enum/role.enum';
 
 export class QueryUserDto {
@@ -21,7 +21,8 @@ export class QueryUserDto {
   @IsEnum(Role)
   role?: Role;
 
-@IsOptional()
+  
+  @IsOptional()
   @Transform(({ value }) => {
     if (value === undefined) return undefined;
 
@@ -32,4 +33,11 @@ export class QueryUserDto {
   })
   isActive?: boolean;
 
+  @IsOptional()
+  @IsString()
+  sortBy?: string = 'createdAt';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  order?: 'asc' | 'desc' = 'desc';
 }
