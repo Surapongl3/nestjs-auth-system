@@ -11,6 +11,7 @@ export class AuthController {
   login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
   }
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('refresh')
   async refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refresh(refreshToken);

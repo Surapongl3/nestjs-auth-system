@@ -42,12 +42,15 @@ export class UsersController {
     return this.usersService.findTrash();
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(AuthGuard('jwt'))
   @Permissions(Permission.VIEW_USERS)
   @Get('admin')
   getAdminData() {
     return 'Only admin can access';
   }
+
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post()
   @HttpCode(201)
   create(@Body() body: CreateUserDto) {
@@ -60,12 +63,14 @@ export class UsersController {
     return this.usersService.findOne(userId);
   }
 
+@Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.usersService.delete(Number(id));
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(AuthGuard('jwt'))
   @Permissions(Permission.BAN_USER)
   @Patch(':id/ban')
@@ -85,6 +90,7 @@ export class UsersController {
     return this.usersService.restore(+id);
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('upload-avatar/:id')
   @UseInterceptors(
     FileInterceptor('file', {

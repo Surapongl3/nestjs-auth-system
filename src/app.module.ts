@@ -24,7 +24,7 @@ import { UsersModule } from './users/users.module';
       {
         name: 'default',
         ttl: 60000,
-        limit: 3,
+        limit: 10,
       },
     ]),
   ],
