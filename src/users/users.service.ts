@@ -3,6 +3,9 @@ import * as bcrypt from 'bcrypt';
 import { QueryUserDto } from 'src/dto/query-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { join } from 'path';
+import * as fs from 'fs';
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
@@ -91,7 +94,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('user not found');
     }
-    
+
     return user;
   }
   async delete(id: number) {
@@ -124,21 +127,43 @@ export class UsersService {
   }
 
   async findTrash() {
-  return this.prisma.user.findMany({
-    where: {
-      deletedAt: {
-        not: null,
+    return this.prisma.user.findMany({
+      where: {
+        deletedAt: {
+          not: null,
+        },
       },
-    },
-  });
-}
+    });
+  }
 
-async restore(id: number) {
-  return this.prisma.user.update({
-    where: { id },
-    data: {
-      deletedAt: null,
-    },
-  });
-}
+  async restore(id: number) {
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+      },
+    });
+  }
+
+  async updateAvatar(userId: number, filename: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (user?.avatar) {
+      const oldPath = join(process.cwd(), 'uploads', user.avatar);
+      ///เช็คว่าไฟล์มีอยู่จริงไหม
+      if (fs.existsSync(oldPath)) {
+        ///ลบไฟล์เก่า
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        avatar: filename,
+      },
+    });
+  }
 }

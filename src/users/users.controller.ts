@@ -21,6 +21,7 @@ import { QueryUserDto } from 'src/dto/query-user.dto';
 import { Permissions } from '../auth/decorator/permissions.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from './users.service';
+import { Throttle } from '@nestjs/throttler';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -29,11 +30,13 @@ export class UsersController {
   ///Guard → ทำงานหลัง routing และรู้ว่าเข้า route ไหน
   ///Guard ใช้กับ authorization ได้ดีกว่า
 
+  
   @UseGuards(AuthGuard('jwt'))
   @Get()
   findAll(@Query() query: QueryUserDto) {
     return this.usersService.findAll(query);
   }
+  
   @Get('trash')
   getTrash() {
     return this.usersService.findTrash();
@@ -82,25 +85,32 @@ export class UsersController {
     return this.usersService.restore(+id);
   }
 
-  @Post('upload-avatar')
+  @Post('upload-avatar/:id')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-       destination: './src/uploads',
+        destination: './uploads',
         filename: (req, file, callback) => {
           const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
 
           callback(null, uniqueName + extname(file.originalname));
         },
       }),
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+          return callback(new Error('Only image files allowed'), false);
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
     }),
   )
-  uploadAvatar(@UploadedFile() file: Express.Multer.File) {
-    console.log(file);
-    
-    return {
-      filename: file.filename,
-       url: `/uploads/${file.filename}`,
-    };
+  async uploadAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.updateAvatar(Number(id), file.filename);
   }
 }
