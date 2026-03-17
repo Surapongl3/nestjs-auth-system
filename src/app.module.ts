@@ -1,3 +1,4 @@
+import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,6 +20,10 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 10000, // cache 10 วินาที
     }),
     ThrottlerModule.forRoot([
       {

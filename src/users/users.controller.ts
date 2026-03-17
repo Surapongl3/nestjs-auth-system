@@ -1,3 +1,4 @@
+import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -14,14 +15,15 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { Permission } from 'src/auth/enum/permission.enum';
 import { QueryUserDto } from 'src/dto/query-user.dto';
+import { generateFilename, imageFileFilter } from 'src/util/file-upload.util';
 import { Permissions } from '../auth/decorator/permissions.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from './users.service';
-import { Throttle } from '@nestjs/throttler';
+
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -29,14 +31,15 @@ export class UsersController {
   ///Middleware → ทำงานก่อน routing
   ///Guard → ทำงานหลัง routing และรู้ว่าเข้า route ไหน
   ///Guard ใช้กับ authorization ได้ดีกว่า
-
-  
-  @UseGuards(AuthGuard('jwt'))
+  @UseInterceptors(CacheInterceptor)
+ 
+ 
+  // @UseGuards(AuthGuard('jwt'))
   @Get()
   findAll(@Query() query: QueryUserDto) {
     return this.usersService.findAll(query);
   }
-  
+
   @Get('trash')
   getTrash() {
     return this.usersService.findTrash();
@@ -63,7 +66,7 @@ export class UsersController {
     return this.usersService.findOne(userId);
   }
 
-@Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   @HttpCode(204)
   remove(@Param('id') id: string) {
@@ -97,17 +100,11 @@ export class UsersController {
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, callback) => {
-          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-
-          callback(null, uniqueName + extname(file.originalname));
+          const name = generateFilename(file);
+          callback(null, name);
         },
       }),
-      fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-          return callback(new Error('Only image files allowed'), false);
-        }
-        callback(null, true);
-      },
+      fileFilter: imageFileFilter,
       limits: {
         fileSize: 2 * 1024 * 1024,
       },

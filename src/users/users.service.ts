@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import { join } from 'path';
 import { QueryUserDto } from 'src/dto/query-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { validateRealImage } from 'src/util/file-upload.util';
 import { CreateUserDto } from '../dto/create-user.dto';
-import { join } from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +42,7 @@ export class UsersService {
         },
       ];
     }
-
+     
     if (role) {
       where.role = role;
     }
@@ -63,6 +64,7 @@ export class UsersService {
     const total = await this.prisma.user.count({
       where,
     });
+  console.log('🔥 HIT DATABASE'); // ✅ ต้องอยู่ตรงนี้
 
     return {
       data: users,
@@ -146,15 +148,29 @@ export class UsersService {
   }
 
   async updateAvatar(userId: number, filename: string) {
+    const newPath = join(process.cwd(), 'uploads', filename);
+
+    // ✅ ตรวจว่าไฟล์เป็น image จริง
+    try {
+      await validateRealImage(newPath);
+    } catch (err) {
+      // ลบไฟล์ที่ upload มา
+      if (fs.existsSync(newPath)) {
+        fs.unlinkSync(newPath);
+      }
+
+      throw err;
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
+    // ลบ avatar เก่า
     if (user?.avatar) {
       const oldPath = join(process.cwd(), 'uploads', user.avatar);
-      ///เช็คว่าไฟล์มีอยู่จริงไหม
+
       if (fs.existsSync(oldPath)) {
-        ///ลบไฟล์เก่า
         fs.unlinkSync(oldPath);
       }
     }
