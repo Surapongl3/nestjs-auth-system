@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import * as redisStore from 'cache-manager-ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -12,6 +13,7 @@ import { PostsModule } from './posts/posts.module';
 import { PostsService } from './posts/posts.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { EmailModule } from './email/email.module';
 @Module({
   imports: [
     UsersModule,
@@ -23,7 +25,10 @@ import { UsersModule } from './users/users.module';
     }),
     CacheModule.register({
       isGlobal: true,
-      ttl: 10000, // cache 10 วินาที
+      store: redisStore,
+      host: '127.0.0.1',
+      port: 6379,
+      ttl: 1000, // TTL in seconds
     }),
     ThrottlerModule.forRoot([
       {
@@ -32,6 +37,7 @@ import { UsersModule } from './users/users.module';
         limit: 10,
       },
     ]),
+    EmailModule,
   ],
   controllers: [AppController, PostsController],
   providers: [

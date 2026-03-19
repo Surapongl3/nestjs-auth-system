@@ -23,6 +23,9 @@ import { generateFilename, imageFileFilter } from 'src/util/file-upload.util';
 import { Permissions } from '../auth/decorator/permissions.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from './users.service';
+import { get } from 'http';
+import { retry } from 'rxjs';
+import { log } from 'console';
 
 @Controller('users')
 export class UsersController {
@@ -31,13 +34,20 @@ export class UsersController {
   ///Middleware → ทำงานก่อน routing
   ///Guard → ทำงานหลัง routing และรู้ว่าเข้า route ไหน
   ///Guard ใช้กับ authorization ได้ดีกว่า
-  @UseInterceptors(CacheInterceptor)
- 
  
   // @UseGuards(AuthGuard('jwt'))
+   @UseInterceptors(CacheInterceptor)
+  @CacheKey('users_list')
+  @CacheTTL(1000000)
   @Get()
   findAll(@Query() query: QueryUserDto) {
+      console.log('🔥 HIT CONTROLLER'); 
+    
     return this.usersService.findAll(query);
+  }
+ @Get('test')
+  async redis (){ 
+    return this.usersService.testCache()
   }
 
   @Get('trash')
@@ -62,8 +72,7 @@ export class UsersController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    const userId = Number(id);
-    return this.usersService.findOne(userId);
+    return this.usersService.findOne(Number(id));
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -116,4 +125,6 @@ export class UsersController {
   ) {
     return this.usersService.updateAvatar(Number(id), file.filename);
   }
+
+ 
 }

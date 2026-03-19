@@ -1,16 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import type { Cache } from 'cache-manager';
 import * as fs from 'fs';
 import { join } from 'path';
 import { QueryUserDto } from 'src/dto/query-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { validateRealImage } from 'src/util/file-upload.util';
 import { CreateUserDto } from '../dto/create-user.dto';
-
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
-
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private prisma: PrismaService,
+  ) {}
+  async testCache() {
+    await this.cacheManager.set('test-key', 'hello', 10000); // TTL = 10 วินาที
+    const value = await this.cacheManager.get('test-key');
+    console.log('cache value:', value); // จะได้ 'hello'
+    return value;
+  }
   async findAll(query: QueryUserDto) {
     const {
       page = 1,
@@ -42,7 +51,7 @@ export class UsersService {
         },
       ];
     }
-     
+
     if (role) {
       where.role = role;
     }
@@ -64,7 +73,7 @@ export class UsersService {
     const total = await this.prisma.user.count({
       where,
     });
-  console.log('🔥 HIT DATABASE'); // ✅ ต้องอยู่ตรงนี้
+    console.log('🔥 HIT DATABASE'); // ✅ ต้องอยู่ตรงนี้
 
     return {
       data: users,
@@ -91,7 +100,7 @@ export class UsersService {
 
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id: id },
     });
     if (!user) {
       throw new NotFoundException('user not found');
