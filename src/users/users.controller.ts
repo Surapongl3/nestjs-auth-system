@@ -12,9 +12,11 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Version,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { Permission } from 'src/auth/enum/permission.enum';
@@ -23,10 +25,8 @@ import { generateFilename, imageFileFilter } from 'src/util/file-upload.util';
 import { Permissions } from '../auth/decorator/permissions.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from './users.service';
-import { get } from 'http';
-import { retry } from 'rxjs';
-import { log } from 'console';
 
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -34,20 +34,34 @@ export class UsersController {
   ///Middleware → ทำงานก่อน routing
   ///Guard → ทำงานหลัง routing และรู้ว่าเข้า route ไหน
   ///Guard ใช้กับ authorization ได้ดีกว่า
- 
+
   // @UseGuards(AuthGuard('jwt'))
-   @UseInterceptors(CacheInterceptor)
+
+  @UseInterceptors(CacheInterceptor)
   @CacheKey('users_list')
   @CacheTTL(1000000)
   @Get()
-  findAll(@Query() query: QueryUserDto) {
-      console.log('🔥 HIT CONTROLLER'); 
-    
+  @ApiOperation({ summary: 'Get all users' })
+  @Version('1')
+  findAllV1(@Query() query: QueryUserDto) {
+ 
     return this.usersService.findAll(query);
   }
- @Get('test')
-  async redis (){ 
-    return this.usersService.testCache()
+
+  @Get()
+  @Version('2')
+  findAllV2(@Query() query: QueryUserDto) {
+
+
+    return {
+      success: true,
+      data: [], // สมมุติ
+      message: 'new version',
+    };
+  }
+  @Get('test')
+  async redis() {
+    return this.usersService.testCache();
   }
 
   @Get('trash')
@@ -58,6 +72,7 @@ export class UsersController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(AuthGuard('jwt'))
   @Permissions(Permission.VIEW_USERS)
+  @ApiBearerAuth()
   @Get('admin')
   getAdminData() {
     return 'Only admin can access';
@@ -65,6 +80,9 @@ export class UsersController {
 
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post()
+  
+  @ApiBody({ type: CreateUserDto })
+  @ApiOperation({ summary: 'Create new user' })
   @HttpCode(201)
   create(@Body() body: CreateUserDto) {
     return this.usersService.create(body);
@@ -125,6 +143,4 @@ export class UsersController {
   ) {
     return this.usersService.updateAvatar(Number(id), file.filename);
   }
-
- 
 }

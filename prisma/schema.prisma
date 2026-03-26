@@ -21,6 +21,7 @@ model User {
   isActive         Boolean   @default(true)
   tokenVersion     Int       @default(0)
   posts            Post[]
+  notification     Notification[]
 }
 
 model Post {
@@ -29,4 +30,15 @@ model Post {
   content String?
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  Int
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

@@ -14,6 +14,7 @@ import { PostsService } from './posts/posts.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
+import { NotificationModule } from './notification/notification.module';
 @Module({
   imports: [
     UsersModule,
@@ -38,6 +39,7 @@ import { EmailModule } from './email/email.module';
       },
     ]),
     EmailModule,
+    NotificationModule,
   ],
   controllers: [AppController, PostsController],
   providers: [

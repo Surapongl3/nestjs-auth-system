@@ -11,8 +11,8 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail', // เปลี่ยนเป็น SMTP ของคุณ
       auth: {
-        user: 'burnremixs@gmail.com',
-        pass: 'uyiwulzzflpdteuk',
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       },
     });
   }
@@ -20,7 +20,7 @@ export class EmailService {
      async sendMail(to: string, subject: string, text: string) {
    
      const info = await this.transporter.sendMail({
-      from: '"NestJS Test" <your.email@gmail.com>',
+      from: "NestJS Test"+ process.env.EMAIL_USER,
       to,
       subject,
       text,

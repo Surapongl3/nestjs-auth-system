@@ -5,21 +5,25 @@ import type { Cache } from 'cache-manager';
 import * as fs from 'fs';
 import { join } from 'path';
 import { QueryUserDto } from 'src/dto/query-user.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { validateRealImage } from 'src/util/file-upload.util';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { IUserRepository } from './interface/user.repository.interface';
+
 @Injectable()
 export class UsersService {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private prisma: PrismaService,
+    @Inject('USER_REPO')
+    private usersRepo: IUserRepository,
   ) {}
+
   async testCache() {
-    await this.cacheManager.set('test-key', 'hello', 10000); // TTL = 10 วินาที
+    await this.cacheManager.set('test-key', 'hello', 10000);
     const value = await this.cacheManager.get('test-key');
-    console.log('cache value:', value); // จะได้ 'hello'
+  
     return value;
   }
+
   async findAll(query: QueryUserDto) {
     const {
       page = 1,
@@ -39,16 +43,8 @@ export class UsersService {
 
     if (search) {
       where.OR = [
-        {
-          email: {
-            contains: search,
-          },
-        },
-        {
-          name: {
-            contains: search,
-          },
-        },
+        { email: { contains: search } },
+        { name: { contains: search } },
       ];
     }
 
@@ -60,20 +56,13 @@ export class UsersService {
       where.isActive = isActive;
     }
 
-    const users = await this.prisma.user.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: {
-        [sortBy]: order,
-      },
-      include: { posts: true },
+    const users = await this.usersRepo.findAll(where, skip, limit, {
+      [sortBy]: order,
     });
 
-    const total = await this.prisma.user.count({
-      where,
-    });
-    console.log('🔥 HIT DATABASE'); // ✅ ต้องอยู่ตรงนี้
+    const total = await this.usersRepo.count(where);
+
+
 
     return {
       data: users,
@@ -88,94 +77,70 @@ export class UsersService {
   async create(data: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        ...data,
-        password: hashedPassword,
-      },
+    return this.usersRepo.create({
+      ...data,
+      password: hashedPassword,
     });
-
-    return user;
   }
 
   async findOne(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: id },
-    });
+    const user = await this.usersRepo.findById(id);
+
     if (!user) {
       throw new NotFoundException('user not found');
     }
 
     return user;
   }
+
   async delete(id: number) {
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        deletedAt: new Date(),
-      },
+    return this.usersRepo.update(id, {
+      deletedAt: new Date(),
     });
   }
+
   async banUser(id: number) {
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        isActive: false,
-        tokenVersion: {
-          increment: 1,
-        },
+    return this.usersRepo.update(id, {
+      isActive: false,
+      tokenVersion: {
+        increment: 1,
       },
     });
   }
 
   async unbanUser(id: number) {
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        isActive: true,
-      },
+    return this.usersRepo.update(id, {
+      isActive: true,
     });
   }
 
   async findTrash() {
-    return this.prisma.user.findMany({
-      where: {
-        deletedAt: {
-          not: null,
-        },
-      },
+    return this.usersRepo.findAll({ deletedAt: { not: null } }, 0, 100, {
+      createdAt: 'desc',
     });
   }
 
   async restore(id: number) {
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        deletedAt: null,
-      },
+    return this.usersRepo.update(id, {
+      deletedAt: null,
     });
   }
 
   async updateAvatar(userId: number, filename: string) {
     const newPath = join(process.cwd(), 'uploads', filename);
 
-    // ✅ ตรวจว่าไฟล์เป็น image จริง
+    // validate file
     try {
       await validateRealImage(newPath);
     } catch (err) {
-      // ลบไฟล์ที่ upload มา
       if (fs.existsSync(newPath)) {
         fs.unlinkSync(newPath);
       }
-
       throw err;
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.usersRepo.findById(userId);
 
-    // ลบ avatar เก่า
     if (user?.avatar) {
       const oldPath = join(process.cwd(), 'uploads', user.avatar);
 
@@ -184,11 +149,8 @@ export class UsersService {
       }
     }
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        avatar: filename,
-      },
+    return this.usersRepo.update(userId, {
+      avatar: filename,
     });
   }
 }
